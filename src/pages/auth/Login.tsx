@@ -1,6 +1,4 @@
-
 import { z } from "zod";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -16,6 +14,7 @@ import {
 import { Mail, KeyRound, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCredentialsAuth } from "@/hooks/useCredentialsAuth";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
@@ -25,8 +24,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const LoginPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { login, isLoading, error } = useCredentialsAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -37,24 +35,10 @@ const LoginPage = () => {
   });
 
   const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // This will be implemented when connecting to Supabase
-      console.log("Login attempt with:", data);
-      
-      // For now, we'll simulate a login with a timeout
-      setTimeout(() => {
-        setIsLoading(false);
-        // For demo, redirect to dashboard
-        window.location.href = "/dashboard";
-      }, 1500);
-    } catch (err) {
-      setIsLoading(false);
-      setError("Falha ao realizar login. Verifique suas credenciais.");
-      console.error("Login error:", err);
-    }
+    await login({
+      email: data.email,
+      password: data.password,
+    });
   };
 
   return (
