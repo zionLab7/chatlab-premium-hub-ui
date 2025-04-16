@@ -15,7 +15,11 @@ import {
   FileSpreadsheet,
   FileDown,
   MoveUpRight,
-  MoreVertical
+  MoreVertical,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Youtube
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -31,16 +35,92 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
-const courses = [
+// Tipos para nossos cursos, módulos e aulas
+interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  duration: string;
+  order: number;
+}
+
+interface Module {
+  id: string;
+  title: string;
+  description: string;
+  lessons: Lesson[];
+  order: number;
+}
+
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  instructor: string;
+  category: string;
+  thumbnail: string;
+  modules: Module[];
+  students: number;
+  status: "published" | "draft";
+}
+
+// Dados simulados
+const courses: Course[] = [
   {
     id: 1,
     title: "Fundamentos de Chatbots",
     description: "Aprenda o básico sobre chatbots e como eles podem revolucionar seu negócio.",
     instructor: "Carlos Mendes",
     category: "Chatbots",
+    thumbnail: "https://via.placeholder.com/300x200?text=Fundamentos+de+Chatbots",
     students: 324,
-    modules: 8,
+    modules: [
+      {
+        id: "m1",
+        title: "Introdução aos Chatbots",
+        description: "Neste módulo você conhecerá os princípios básicos dos chatbots.",
+        order: 1,
+        lessons: [
+          {
+            id: "l1",
+            title: "O que são chatbots",
+            description: "Uma visão geral sobre o que são chatbots e como funcionam.",
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            duration: "12:30",
+            order: 1
+          },
+          {
+            id: "l2",
+            title: "História dos chatbots",
+            description: "Como os chatbots evoluíram ao longo do tempo.",
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            duration: "15:45",
+            order: 2
+          }
+        ]
+      },
+      {
+        id: "m2",
+        title: "Construindo seu primeiro chatbot",
+        description: "Vamos criar um chatbot simples neste módulo.",
+        order: 2,
+        lessons: [
+          {
+            id: "l3",
+            title: "Planejamento do chatbot",
+            description: "Como planejar a estrutura do seu chatbot.",
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            duration: "18:20",
+            order: 1
+          }
+        ]
+      }
+    ],
     status: "published"
   },
   {
@@ -49,8 +129,26 @@ const courses = [
     description: "Estratégias avançadas de marketing digital para impulsionar suas vendas.",
     instructor: "Ana Silva",
     category: "Marketing",
+    thumbnail: "https://via.placeholder.com/300x200?text=Marketing+Digital",
     students: 215,
-    modules: 12,
+    modules: [
+      {
+        id: "m3",
+        title: "SEO Avançado",
+        description: "Técnicas avançadas de otimização para motores de busca.",
+        order: 1,
+        lessons: [
+          {
+            id: "l4",
+            title: "Fundamentos de SEO",
+            description: "Os princípios fundamentais do SEO moderno.",
+            videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            duration: "22:15",
+            order: 1
+          }
+        ]
+      }
+    ],
     status: "published"
   },
   {
@@ -59,8 +157,9 @@ const courses = [
     description: "Como estruturar um atendimento eficiente usando o WhatsApp Business.",
     instructor: "Roberto Alves",
     category: "Atendimento",
+    thumbnail: "https://via.placeholder.com/300x200?text=Atendimento+WhatsApp",
     students: 189,
-    modules: 6,
+    modules: [],
     status: "published"
   },
   {
@@ -69,8 +168,9 @@ const courses = [
     description: "Use inteligência artificial para potencializar sua estratégia de vendas.",
     instructor: "Patricia Costa",
     category: "Estratégia",
+    thumbnail: "https://via.placeholder.com/300x200?text=Vendas+com+IA",
     students: 156,
-    modules: 10,
+    modules: [],
     status: "draft"
   },
   {
@@ -79,8 +179,9 @@ const courses = [
     description: "Ferramentas e técnicas para automatizar seus processos de marketing.",
     instructor: "Ricardo Sousa",
     category: "Marketing",
+    thumbnail: "https://via.placeholder.com/300x200?text=Automação+de+Marketing",
     students: 0,
-    modules: 9,
+    modules: [],
     status: "draft"
   }
 ];
@@ -89,15 +190,41 @@ const AdminCoursesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [isAddModuleDialogOpen, setIsAddModuleDialogOpen] = useState(false);
+  const [isAddLessonDialogOpen, setIsAddLessonDialogOpen] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [newCourse, setNewCourse] = useState({
     title: "",
     description: "",
     instructor: "",
     category: "",
+    thumbnail: "",
     modules: []
   });
+  const [newModule, setNewModule] = useState({
+    title: "",
+    description: ""
+  });
+  const [newLesson, setNewLesson] = useState({
+    title: "",
+    description: "",
+    videoUrl: "",
+    duration: ""
+  });
   
+  // Formulário para adicionar/editar cursos
+  const form = useForm({
+    defaultValues: {
+      title: "",
+      description: "",
+      instructor: "",
+      category: "",
+      thumbnail: "",
+      status: "draft"
+    }
+  });
+
   const filteredCourses = courses.filter((course) => 
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -105,13 +232,14 @@ const AdminCoursesPage = () => {
   );
 
   const handleAddCourse = () => {
-    // Simulate adding a course
-    console.log("Adding course:", newCourse);
+    // Simulação de adição de curso
+    console.log("Adicionando curso:", newCourse);
     setNewCourse({
       title: "",
       description: "",
       instructor: "",
       category: "",
+      thumbnail: "",
       modules: []
     });
     setIsAddDialogOpen(false);
@@ -119,17 +247,102 @@ const AdminCoursesPage = () => {
   };
 
   const handleEditCourse = () => {
-    // Simulate editing a course
-    console.log("Editing course:", selectedCourse);
+    // Simulação de edição de curso
+    console.log("Editando curso:", selectedCourse);
     setSelectedCourse(null);
     setIsEditDialogOpen(false);
     toast.success("Curso atualizado com sucesso!");
   };
 
   const handleDeleteCourse = (id: number) => {
-    // Simulate deleting a course
-    console.log("Deleting course with ID:", id);
+    // Simulação de exclusão de curso
+    console.log("Excluindo curso com ID:", id);
     toast.success("Curso excluído com sucesso!");
+  };
+
+  const handleAddModule = () => {
+    if (!selectedCourse) return;
+    
+    console.log("Adicionando módulo:", newModule);
+    
+    // Simulação da adição de um novo módulo ao curso selecionado
+    const newModuleObj: Module = {
+      id: `m${Date.now()}`,
+      title: newModule.title,
+      description: newModule.description,
+      lessons: [],
+      order: selectedCourse.modules.length + 1
+    };
+    
+    // Atualizar o curso selecionado com o novo módulo
+    setSelectedCourse({
+      ...selectedCourse,
+      modules: [...selectedCourse.modules, newModuleObj]
+    });
+    
+    // Limpar o formulário
+    setNewModule({
+      title: "",
+      description: ""
+    });
+    
+    setIsAddModuleDialogOpen(false);
+    toast.success("Módulo adicionado com sucesso!");
+  };
+
+  const handleAddLesson = () => {
+    if (!selectedCourse || !selectedModule) return;
+    
+    console.log("Adicionando aula:", newLesson);
+    
+    // Simulação da adição de uma nova aula ao módulo selecionado
+    const newLessonObj: Lesson = {
+      id: `l${Date.now()}`,
+      title: newLesson.title,
+      description: newLesson.description,
+      videoUrl: newLesson.videoUrl,
+      duration: newLesson.duration,
+      order: selectedModule.lessons.length + 1
+    };
+    
+    // Encontrar o índice do módulo selecionado
+    const moduleIndex = selectedCourse.modules.findIndex(m => m.id === selectedModule.id);
+    
+    // Atualizar o módulo com a nova aula
+    const updatedModules = [...selectedCourse.modules];
+    updatedModules[moduleIndex] = {
+      ...selectedModule,
+      lessons: [...selectedModule.lessons, newLessonObj]
+    };
+    
+    // Atualizar o curso selecionado com os módulos atualizados
+    setSelectedCourse({
+      ...selectedCourse,
+      modules: updatedModules
+    });
+    
+    // Atualizar também o módulo selecionado
+    setSelectedModule({
+      ...selectedModule,
+      lessons: [...selectedModule.lessons, newLessonObj]
+    });
+    
+    // Limpar o formulário
+    setNewLesson({
+      title: "",
+      description: "",
+      videoUrl: "",
+      duration: ""
+    });
+    
+    setIsAddLessonDialogOpen(false);
+    toast.success("Aula adicionada com sucesso!");
+  };
+
+  const extractYoutubeVideoId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url?.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
   };
 
   return (
@@ -173,7 +386,7 @@ const AdminCoursesPage = () => {
                       id="description"
                       value={newCourse.description}
                       onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
-                      placeholder="Descrição do curso"
+                      placeholder="Descrição detalhada do curso"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -203,7 +416,12 @@ const AdminCoursesPage = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label>Thumbnail</Label>
-                    <Input type="file" />
+                    <Input 
+                      type="text" 
+                      placeholder="URL da imagem de thumbnail"
+                      value={newCourse.thumbnail}
+                      onChange={(e) => setNewCourse({...newCourse, thumbnail: e.target.value})}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -286,8 +504,12 @@ const AdminCoursesPage = () => {
                         <tr key={course.id} className="border-b">
                           <td className="py-3 px-2">
                             <div className="flex items-center space-x-3">
-                              <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                                <BookOpen className="h-5 w-5 text-gray-500" />
+                              <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center overflow-hidden">
+                                {course.thumbnail ? (
+                                  <img src={course.thumbnail} alt={course.title} className="object-cover w-full h-full" />
+                                ) : (
+                                  <BookOpen className="h-5 w-5 text-gray-500" />
+                                )}
                               </div>
                               <div>
                                 <div className="font-medium">{course.title}</div>
@@ -322,76 +544,306 @@ const AdminCoursesPage = () => {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[600px]">
+                                <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
                                   <DialogHeader>
                                     <DialogTitle>Editar Curso</DialogTitle>
                                     <DialogDescription>
-                                      Atualize as informações do curso.
+                                      Atualize as informações do curso, módulos e aulas.
                                     </DialogDescription>
                                   </DialogHeader>
                                   {selectedCourse && (
-                                    <div className="grid gap-4 py-4">
-                                      <div className="grid gap-2">
-                                        <Label htmlFor="edit-title">Título</Label>
-                                        <Input
-                                          id="edit-title"
-                                          value={selectedCourse.title}
-                                          onChange={(e) => setSelectedCourse({...selectedCourse, title: e.target.value})}
-                                        />
-                                      </div>
-                                      <div className="grid gap-2">
-                                        <Label htmlFor="edit-description">Descrição</Label>
-                                        <Textarea
-                                          id="edit-description"
-                                          value={selectedCourse.description}
-                                          onChange={(e) => setSelectedCourse({...selectedCourse, description: e.target.value})}
-                                        />
-                                      </div>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-6">
+                                      <div className="grid gap-4 py-4">
                                         <div className="grid gap-2">
-                                          <Label htmlFor="edit-instructor">Instrutor</Label>
+                                          <Label htmlFor="edit-title">Título</Label>
                                           <Input
-                                            id="edit-instructor"
-                                            value={selectedCourse.instructor}
-                                            onChange={(e) => setSelectedCourse({...selectedCourse, instructor: e.target.value})}
+                                            id="edit-title"
+                                            value={selectedCourse.title}
+                                            onChange={(e) => setSelectedCourse({...selectedCourse, title: e.target.value})}
                                           />
                                         </div>
                                         <div className="grid gap-2">
-                                          <Label htmlFor="edit-category">Categoria</Label>
+                                          <Label htmlFor="edit-description">Descrição</Label>
+                                          <Textarea
+                                            id="edit-description"
+                                            value={selectedCourse.description}
+                                            onChange={(e) => setSelectedCourse({...selectedCourse, description: e.target.value})}
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div className="grid gap-2">
+                                            <Label htmlFor="edit-instructor">Instrutor</Label>
+                                            <Input
+                                              id="edit-instructor"
+                                              value={selectedCourse.instructor}
+                                              onChange={(e) => setSelectedCourse({...selectedCourse, instructor: e.target.value})}
+                                            />
+                                          </div>
+                                          <div className="grid gap-2">
+                                            <Label htmlFor="edit-category">Categoria</Label>
+                                            <Select 
+                                              defaultValue={selectedCourse.category}
+                                              onValueChange={(value) => setSelectedCourse({...selectedCourse, category: value})}
+                                            >
+                                              <SelectTrigger id="edit-category">
+                                                <SelectValue placeholder="Selecione a categoria" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="Chatbots">Chatbots</SelectItem>
+                                                <SelectItem value="Marketing">Marketing</SelectItem>
+                                                <SelectItem value="Atendimento">Atendimento</SelectItem>
+                                                <SelectItem value="Estratégia">Estratégia</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                        </div>
+                                        <div className="grid gap-2">
+                                          <Label htmlFor="edit-thumbnail">Thumbnail</Label>
+                                          <Input
+                                            id="edit-thumbnail"
+                                            type="text"
+                                            placeholder="URL da imagem de thumbnail"
+                                            value={selectedCourse.thumbnail || ""}
+                                            onChange={(e) => setSelectedCourse({...selectedCourse, thumbnail: e.target.value})}
+                                          />
+                                          {selectedCourse.thumbnail && (
+                                            <div className="mt-2 h-[150px] w-full max-w-[300px] rounded overflow-hidden">
+                                              <img 
+                                                src={selectedCourse.thumbnail} 
+                                                alt={selectedCourse.title} 
+                                                className="object-cover w-full h-full"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                          <Label htmlFor="edit-status">Status</Label>
                                           <Select 
-                                            defaultValue={selectedCourse.category}
-                                            onValueChange={(value) => setSelectedCourse({...selectedCourse, category: value})}
+                                            defaultValue={selectedCourse.status}
+                                            onValueChange={(value) => setSelectedCourse({
+                                              ...selectedCourse, 
+                                              status: value as "published" | "draft"
+                                            })}
                                           >
-                                            <SelectTrigger id="edit-category">
-                                              <SelectValue placeholder="Selecione a categoria" />
+                                            <SelectTrigger id="edit-status">
+                                              <SelectValue placeholder="Selecione o status" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              <SelectItem value="Chatbots">Chatbots</SelectItem>
-                                              <SelectItem value="Marketing">Marketing</SelectItem>
-                                              <SelectItem value="Atendimento">Atendimento</SelectItem>
-                                              <SelectItem value="Estratégia">Estratégia</SelectItem>
+                                              <SelectItem value="published">Publicado</SelectItem>
+                                              <SelectItem value="draft">Rascunho</SelectItem>
                                             </SelectContent>
                                           </Select>
                                         </div>
                                       </div>
-                                      <div className="grid gap-2">
-                                        <Label htmlFor="edit-status">Status</Label>
-                                        <Select 
-                                          defaultValue={selectedCourse.status}
-                                          onValueChange={(value) => setSelectedCourse({...selectedCourse, status: value})}
-                                        >
-                                          <SelectTrigger id="edit-status">
-                                            <SelectValue placeholder="Selecione o status" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="published">Publicado</SelectItem>
-                                            <SelectItem value="draft">Rascunho</SelectItem>
-                                          </SelectContent>
-                                        </Select>
+
+                                      <div className="border-t pt-4">
+                                        <div className="flex items-center justify-between mb-4">
+                                          <h3 className="text-lg font-medium">Módulos</h3>
+                                          <Dialog open={isAddModuleDialogOpen} onOpenChange={setIsAddModuleDialogOpen}>
+                                            <DialogTrigger asChild>
+                                              <Button size="sm">
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Adicionar Módulo
+                                              </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[500px]">
+                                              <DialogHeader>
+                                                <DialogTitle>Adicionar Novo Módulo</DialogTitle>
+                                                <DialogDescription>
+                                                  Crie um novo módulo para o curso.
+                                                </DialogDescription>
+                                              </DialogHeader>
+                                              <div className="grid gap-4 py-4">
+                                                <div className="grid gap-2">
+                                                  <Label htmlFor="module-title">Título do Módulo</Label>
+                                                  <Input
+                                                    id="module-title"
+                                                    value={newModule.title}
+                                                    onChange={(e) => setNewModule({...newModule, title: e.target.value})}
+                                                    placeholder="Ex: Introdução ao tema"
+                                                  />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                  <Label htmlFor="module-description">Descrição</Label>
+                                                  <Textarea
+                                                    id="module-description"
+                                                    value={newModule.description}
+                                                    onChange={(e) => setNewModule({...newModule, description: e.target.value})}
+                                                    placeholder="Descreva o que será abordado neste módulo"
+                                                  />
+                                                </div>
+                                              </div>
+                                              <DialogFooter>
+                                                <Button variant="outline" onClick={() => setIsAddModuleDialogOpen(false)}>Cancelar</Button>
+                                                <Button onClick={handleAddModule}>Adicionar Módulo</Button>
+                                              </DialogFooter>
+                                            </DialogContent>
+                                          </Dialog>
+                                        </div>
+
+                                        {selectedCourse.modules.length === 0 ? (
+                                          <div className="text-center p-4 bg-gray-50 rounded-md">
+                                            <p className="text-gray-500">Nenhum módulo adicionado ainda.</p>
+                                          </div>
+                                        ) : (
+                                          <Accordion type="single" collapsible className="w-full">
+                                            {selectedCourse.modules.map((module, index) => (
+                                              <AccordionItem key={module.id} value={module.id}>
+                                                <AccordionTrigger className="hover:bg-gray-50 px-4">
+                                                  <div className="flex items-center text-left">
+                                                    <span className="font-medium">{index + 1}. {module.title}</span>
+                                                  </div>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="p-4 space-y-4">
+                                                  <div className="space-y-2">
+                                                    <Label>Descrição</Label>
+                                                    <Textarea
+                                                      value={module.description}
+                                                      onChange={(e) => {
+                                                        const updatedModules = [...selectedCourse.modules];
+                                                        updatedModules[index] = {
+                                                          ...module,
+                                                          description: e.target.value
+                                                        };
+                                                        setSelectedCourse({
+                                                          ...selectedCourse,
+                                                          modules: updatedModules
+                                                        });
+                                                      }}
+                                                    />
+                                                  </div>
+                                                  
+                                                  <div className="border-t pt-4">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                      <h4 className="font-medium">Aulas</h4>
+                                                      <Dialog open={isAddLessonDialogOpen && selectedModule?.id === module.id} onOpenChange={(open) => {
+                                                        setIsAddLessonDialogOpen(open);
+                                                        if (open) setSelectedModule(module);
+                                                        else setSelectedModule(null);
+                                                      }}>
+                                                        <DialogTrigger asChild>
+                                                          <Button variant="outline" size="sm" onClick={() => setSelectedModule(module)}>
+                                                            <Plus className="h-3 w-3 mr-2" />
+                                                            Adicionar Aula
+                                                          </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="sm:max-w-[550px]">
+                                                          <DialogHeader>
+                                                            <DialogTitle>Adicionar Nova Aula</DialogTitle>
+                                                            <DialogDescription>
+                                                              Crie uma nova aula para o módulo {module.title}.
+                                                            </DialogDescription>
+                                                          </DialogHeader>
+                                                          <div className="grid gap-4 py-4">
+                                                            <div className="grid gap-2">
+                                                              <Label htmlFor="lesson-title">Título da Aula</Label>
+                                                              <Input
+                                                                id="lesson-title"
+                                                                value={newLesson.title}
+                                                                onChange={(e) => setNewLesson({...newLesson, title: e.target.value})}
+                                                                placeholder="Ex: Introdução ao conceito"
+                                                              />
+                                                            </div>
+                                                            <div className="grid gap-2">
+                                                              <Label htmlFor="lesson-description">Descrição</Label>
+                                                              <Textarea
+                                                                id="lesson-description"
+                                                                value={newLesson.description}
+                                                                onChange={(e) => setNewLesson({...newLesson, description: e.target.value})}
+                                                                placeholder="Descreva o conteúdo desta aula"
+                                                              />
+                                                            </div>
+                                                            <div className="grid gap-2">
+                                                              <Label htmlFor="lesson-video" className="flex items-center gap-2">
+                                                                <Youtube className="h-4 w-4" />
+                                                                URL do Vídeo (YouTube)
+                                                              </Label>
+                                                              <Input
+                                                                id="lesson-video"
+                                                                value={newLesson.videoUrl}
+                                                                onChange={(e) => setNewLesson({...newLesson, videoUrl: e.target.value})}
+                                                                placeholder="Ex: https://www.youtube.com/watch?v=..."
+                                                              />
+                                                              <p className="text-xs text-muted-foreground">
+                                                                Cole a URL completa do vídeo no YouTube.
+                                                              </p>
+                                                            </div>
+                                                            <div className="grid gap-2">
+                                                              <Label htmlFor="lesson-duration">Duração</Label>
+                                                              <Input
+                                                                id="lesson-duration"
+                                                                value={newLesson.duration}
+                                                                onChange={(e) => setNewLesson({...newLesson, duration: e.target.value})}
+                                                                placeholder="Ex: 12:30"
+                                                              />
+                                                            </div>
+                                                          </div>
+                                                          <DialogFooter>
+                                                            <Button variant="outline" onClick={() => setIsAddLessonDialogOpen(false)}>Cancelar</Button>
+                                                            <Button onClick={handleAddLesson}>Adicionar Aula</Button>
+                                                          </DialogFooter>
+                                                        </DialogContent>
+                                                      </Dialog>
+                                                    </div>
+                                                    
+                                                    {module.lessons.length === 0 ? (
+                                                      <div className="text-center p-3 bg-gray-50 rounded-md">
+                                                        <p className="text-sm text-gray-500">Nenhuma aula adicionada ainda.</p>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="space-y-3">
+                                                        {module.lessons.map((lesson, lessonIndex) => (
+                                                          <div key={lesson.id} className="border rounded-md p-3 space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                              <h5 className="font-medium">{lessonIndex + 1}. {lesson.title}</h5>
+                                                              <div className="flex space-x-1">
+                                                                <Button variant="ghost" size="icon">
+                                                                  <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon">
+                                                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                                                </Button>
+                                                              </div>
+                                                            </div>
+                                                            <div className="text-sm text-gray-600">{lesson.description}</div>
+                                                            <div className="flex items-center text-xs text-gray-500 space-x-3">
+                                                              <span className="flex items-center gap-1">
+                                                                <Youtube className="h-3 w-3" />
+                                                                Vídeo: {lesson.videoUrl ? (
+                                                                  <a href={lesson.videoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                                                                    Ver
+                                                                  </a>
+                                                                ) : "Não definido"}
+                                                              </span>
+                                                              <span>Duração: {lesson.duration}</span>
+                                                            </div>
+                                                            {lesson.videoUrl && extractYoutubeVideoId(lesson.videoUrl) && (
+                                                              <div className="mt-2 border rounded overflow-hidden aspect-video">
+                                                                <iframe
+                                                                  width="100%"
+                                                                  height="100%"
+                                                                  src={`https://www.youtube.com/embed/${extractYoutubeVideoId(lesson.videoUrl)}`}
+                                                                  title={lesson.title}
+                                                                  frameBorder="0"
+                                                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                  allowFullScreen
+                                                                ></iframe>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </AccordionContent>
+                                              </AccordionItem>
+                                            ))}
+                                          </Accordion>
+                                        )}
                                       </div>
                                     </div>
                                   )}
-                                  <DialogFooter>
+                                  <DialogFooter className="mt-6">
                                     <Button variant="outline" onClick={() => {
                                       setIsEditDialogOpen(false);
                                       setSelectedCourse(null);
@@ -459,8 +911,12 @@ const AdminCoursesPage = () => {
                           <tr key={course.id} className="border-b">
                             <td className="py-3 px-2">
                               <div className="flex items-center space-x-3">
-                                <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                                  <BookOpen className="h-5 w-5 text-gray-500" />
+                                <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center overflow-hidden">
+                                  {course.thumbnail ? (
+                                    <img src={course.thumbnail} alt={course.title} className="object-cover w-full h-full" />
+                                  ) : (
+                                    <BookOpen className="h-5 w-5 text-gray-500" />
+                                  )}
                                 </div>
                                 <div>
                                   <div className="font-medium">{course.title}</div>
@@ -512,8 +968,12 @@ const AdminCoursesPage = () => {
                           <tr key={course.id} className="border-b">
                             <td className="py-3 px-2">
                               <div className="flex items-center space-x-3">
-                                <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
-                                  <BookOpen className="h-5 w-5 text-gray-500" />
+                                <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center overflow-hidden">
+                                  {course.thumbnail ? (
+                                    <img src={course.thumbnail} alt={course.title} className="object-cover w-full h-full" />
+                                  ) : (
+                                    <BookOpen className="h-5 w-5 text-gray-500" />
+                                  )}
                                 </div>
                                 <div>
                                   <div className="font-medium">{course.title}</div>
@@ -525,7 +985,7 @@ const AdminCoursesPage = () => {
                             </td>
                             <td className="py-3 px-2">{course.category}</td>
                             <td className="py-3 px-2">{course.instructor}</td>
-                            <td className="py-3 px-2">{course.modules}</td>
+                            <td className="py-3 px-2">{course.modules.length}</td>
                             <td className="py-3 px-2 text-right">
                               <div className="flex items-center justify-end space-x-2">
                                 <Button variant="ghost" size="icon">
